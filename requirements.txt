@@ -1,0 +1,4 @@
+requests==2.26.0
+prompt_toolkit==1.0.14
+Pygments>=2.2.0
+PyInquirer==1.0.3
