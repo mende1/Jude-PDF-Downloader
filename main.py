@@ -1,46 +1,16 @@
-import os
-import pathlib
 import json
 import requests
-from PyInquirer import prompt
+import questionary
 
-from examples import custom_style_3
-
+from colorama import Fore
 
 JUDE_URL = 'http://200.128.51.30'
 
-
-questions = {
-	'contest': {
-		'type': 'list',
-		'name': 'contest',
-		'message': 'Selecione o Contest:',
-		'choices': []
-	},
-	'auth_login': {
-		'type': 'input',
-		'name': 'login',
-		'message': 'Login: '
-	},
-	'auth_passwd': {
-		'type': 'password',
-		'name': 'password',
-		'message': 'Password: '
-	},
-	'problems': {
-		'type': 'checkbox',
-		'name': 'problems',
-		'message': 'Problemas a serem baixados: ',
-		'choices': []
-	},
-	'path': {
-		'type': 'input',
-		'name': 'path',
-		'message': 'Diretório para Download dos PDFs: ',
-	}
-}
-
-
+custom_style = questionary.Style([
+	('selected', 'bg:#fc0'),
+	('selected', 'fg:#333'),
+	('highlighted', 'bg:#222 bold'),
+])
 
 def main():
 
@@ -59,15 +29,39 @@ def main():
 		dict_aux = { name: contest }
 		dict_contests.update(dict_aux)
 
-	for name, contest in dict_contests.items():
-		questions['contest']['choices'].append(contest['name'])
+	contests = []
 
-	main_name = prompt(questions['contest'], style=custom_style_3)['contest']
+	for name, contest in dict_contests.items():
+		contests.append(contest['name'])
+
+	main_name = questionary.select(
+		'Selecione o Contest: ', 
+		choices = contests,
+		style=custom_style
+	).ask()
 
 	main_contest = dict_contests[main_name]
 
-	login  = prompt(questions['auth_login'], style=custom_style_3)['login']
-	passwd = prompt(questions['auth_passwd'], style=custom_style_3)['password']
+	list_problems = main_contest['problems']
+	problems = []
+
+	for problem in list_problems:
+		letter = problem['letter']
+		problems.append(letter)
+
+	download_problems = questionary.checkbox(
+		'Problemas para Download: ', 
+		choices = problems,
+		validate = lambda a : (
+            True if len(a) > 0 else "Você precisa selecionar pelo menos um problema!"
+        ),
+		style=custom_style
+	).ask()
+
+	# AUTH
+
+	login = questionary.text('Login: ').ask()
+	passwd = questionary.password('Password: ').ask()
 
 	data = {
 		"handle": login,
@@ -75,27 +69,31 @@ def main():
 		"contest": main_contest['_id']
 	}
 
-	session.post(JUDE_URL + "/api-login", data=data)
+	response = session.post(JUDE_URL + "/api-login", data=data)
+	
+	try:
+		response.raise_for_status()
+	except requests.exceptions.RequestException as e:
+		print(Fore.RED + 'Error ' + str(e))
+		return
 
-	problems = main_contest['problems']
-
-	for problem in problems:
-		letter = problem['letter']
-		dict_aux = { 'name': letter}
-		questions['problems']['choices'].append(dict_aux)
-
-	download_problems = prompt(questions['problems'], style=custom_style_3)
 
 	# PATH CHOICE
+	
+	path = questionary.path(
+		'Diretório para Download dos PDFs:', 
+		only_directories=True, 
+		complete_style='MULTI_COLUMN',
+		style=custom_style
+	).ask()
 
-	print("Exemplo Linux: /home/mendel/Desktop")
-	print("Exemplo Windows: C:\\\\Users\\\\mendel\\\\Desktop")
+	if path.endswith('/') or path.endswith('\\'):
+		path.pop(len(path)-1)
 
-	path = prompt(questions['path'], style=custom_style_3)['path']
 
 	# DOWNLOAD PDF
 
-	for problem in download_problems['problems']:
+	for problem in download_problems:
 		pdf = session.get(JUDE_URL + "/contest/statement/" + problem)
 
 		try:
@@ -104,10 +102,8 @@ def main():
 			print(f"Problema {problem} baixado com sucesso ✔️")
 		
 		except IOError:
-			print("error ao baixar")
-
-
-	f.close()
+			print(f"Erro ao baixar arquivos ❌")
+			return
 
 
 if __name__ == '__main__':
