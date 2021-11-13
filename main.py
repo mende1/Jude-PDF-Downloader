@@ -89,7 +89,7 @@ def main():
 	# PATH CHOICE
 
 	print("Exemplo Linux: /home/mendel/Desktop")
-	print("Exemplo Windows: C:\\Users\\mendel\\Desktop")
+	print("Exemplo Windows: C:\\\\Users\\\\mendel\\\\Desktop")
 
 	path = prompt(questions['path'], style=custom_style_3)['path']
 
