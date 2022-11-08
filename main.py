@@ -12,6 +12,31 @@ custom_style = questionary.Style([
 	('highlighted', 'bg:#222 bold'),
 ])
 
+def login(session, main_contest):
+	user = questionary.text('Login: ').ask()
+	password = questionary.password('Password: ').ask()
+
+	data = {
+		"handle": user,
+		"password": password,
+		"contest": main_contest['_id']
+	}
+
+	response = session.post(JUDE_URL + "/api-login", data=data)
+
+	try:
+		response.raise_for_status()
+		return data
+
+	except requests.exceptions.RequestException as e:
+		if e.response.status_code == 401:
+			print(Fore.RED + 'Login incorreto, tente novamente!')
+			login(session)
+		
+		print(Fore.RED + 'Error ' + str(e))
+		exit()
+
+
 def main():
 
 	session = requests.Session()
@@ -59,27 +84,9 @@ def main():
 	).ask()
 
 	# AUTH
-
-	login = questionary.text('Login: ').ask()
-	passwd = questionary.password('Password: ').ask()
-
-	data = {
-		"handle": login,
-		"password": passwd,
-		"contest": main_contest['_id']
-	}
-
-	response = session.post(JUDE_URL + "/api-login", data=data)
-	
-	try:
-		response.raise_for_status()
-	except requests.exceptions.RequestException as e:
-		print(Fore.RED + 'Error ' + str(e))
-		return
-
+	login(session, main_contest)
 
 	# PATH CHOICE
-	
 	path = questionary.path(
 		'Diretório para Download dos PDFs:', 
 		only_directories=True, 
